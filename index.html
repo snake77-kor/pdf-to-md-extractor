@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>대량 다중 PDF ➔ 마크다운(MD) 자동 변환기</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- 아이콘 (Lucide) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- JSZip 라이브러리 (ZIP 파일 압축용) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <header>
+      <div class="header-content">
+        <i data-lucide="file-text" class="logo-icon"></i>
+        <h1>대량 문서 AI 정리기</h1>
+        <p>PDF 문서를 완벽한 구조의 마크다운(.md)으로 일괄 자동 변환합니다.</p>
+      </div>
+    </header>
+
+    <main>
+      <!-- API Key 섹션 -->
+      <section class="card api-section">
+        <div class="card-header">
+          <i data-lucide="key"></i>
+          <h2>Gemini API 설정</h2>
+        </div>
+        <div class="input-group">
+          <input type="password" id="apiKeyInput" placeholder="Gemini API 키를 입력하세요 (예: AIzaSy...)">
+          <button id="saveApiKeyBtn" class="btn btn-secondary">저장</button>
+        </div>
+        <p class="help-text">키는 브라우저에만 안전하게 저장되며 외부로 유출되지 않습니다.</p>
+      </section>
+
+      <!-- 파일 업로드 섹션 -->
+      <section class="card upload-section">
+        <div class="card-header">
+          <i data-lucide="upload-cloud"></i>
+          <h2>PDF 파일 업로드</h2>
+        </div>
+        <div class="drop-zone" id="dropZone">
+          <i data-lucide="file-up" class="drop-icon"></i>
+          <h3>이곳에 PDF 파일들을 끌어다 놓으세요</h3>
+          <p>또는 클릭하여 파일 선택 (여러 개 선택 가능)</p>
+          <input type="file" id="fileInput" accept="application/pdf" multiple hidden>
+        </div>
+      </section>
+
+      <!-- 변환 진행 상황 섹션 -->
+      <section class="card progress-section" id="progressSection" style="display: none;">
+        <div class="card-header flex-between">
+          <div class="flex-align">
+            <i data-lucide="activity"></i>
+            <h2>변환 진행 상황</h2>
+          </div>
+          <button id="downloadZipBtn" class="btn btn-primary" style="display: none;">
+            <i data-lucide="download"></i> ZIP으로 모두 다운로드
+          </button>
+        </div>
+        <div class="file-list" id="fileList">
+          <!-- JS로 파일 항목들이 추가됩니다. -->
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
