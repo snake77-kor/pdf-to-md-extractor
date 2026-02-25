@@ -127,6 +127,12 @@ async function startProcessing(files, apiKey) {
   lucide.createIcons(); // 업데이트된 아이콘 새로고침
 
   if (convertedFiles.length > 0) {
+    if (convertedFiles.length === 1) {
+      downloadZipBtn.innerHTML = '<i data-lucide="download"></i> 파일 다운로드';
+    } else {
+      downloadZipBtn.innerHTML = '<i data-lucide="download"></i> ZIP으로 모두 다운로드';
+    }
+    lucide.createIcons();
     downloadZipBtn.style.display = 'inline-flex';
   }
 }
@@ -278,9 +284,22 @@ function convertFileToBase64(file) {
   });
 }
 
-// 5. ZIP 압축 및 다운로드 처리
+// 5. 압축 및 단일/일괄 다운로드 처리
 downloadZipBtn.addEventListener('click', () => {
   if (convertedFiles.length === 0) return;
+
+  if (convertedFiles.length === 1) {
+    // 단일 파일인 경우 그대로 MD 파일 다운로드
+    const file = convertedFiles[0];
+    const blob = new Blob([file.content], { type: 'text/markdown; charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = file.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    return;
+  }
 
   const zip = new JSZip();
 
@@ -293,10 +312,9 @@ downloadZipBtn.addEventListener('click', () => {
     const link = document.createElement('a');
     link.href = URL.createObjectURL(content);
 
-    // 날짜를 포함한 기본 다운로드 파일명
-    const today = new Date();
-    const dateStr = `${today.getFullYear()}${(today.getMonth() + 1).toString().padStart(2, '0')}${today.getDate().toString().padStart(2, '0')}`;
-    link.download = `마크다운_일괄변환_${dateStr}.zip`;
+    // 첫 번째 파일명 기준으로 ZIP 파일 이름 설정
+    const firstFileName = convertedFiles[0].filename.replace(/\.md$/, "");
+    link.download = `${firstFileName}.zip`;
 
     document.body.appendChild(link);
     link.click();
