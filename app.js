@@ -126,6 +126,11 @@ async function startProcessing(files, apiKey) {
     } catch (error) {
       console.error(error);
       updateFileUI(item.id, `오류: ${error.message}`, 'error', 100);
+
+      // API 키 오류인 경우 전체 프로세스 중단
+      if (error.message.includes('API 키가 유효하지 않습니다') || error.message.includes('API key not valid')) {
+        break;
+      }
     }
   }
 
@@ -237,8 +242,21 @@ async function callGeminiAPI(base64Data, apiKey) {
         console.warn(`[실패]: ${modelName} - ${errMsg}`);
         lastErrorMsg = errMsg;
 
-        // 403(권한 없음), 400(지원하지 않는 기능), 404(모델 없음), 신규 미지원 모델일 경우 영구 블랙리스트에 추가하고 다음 모델로 넘어감
-        if ([403, 400, 404].includes(response.status) || errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('no longer available')) {
+        if (errMsg.toLowerCase().includes('api key not valid') || response.status === 401) {
+          throw new Error('API 키가 유효하지 않습니다. 올바른 API 키를 입력해주세요.');
+        }
+
+        // 400 오류는 파일 크기 초과, 잘못된 파일 포맷 등 사용자 요청에 문제가 있는 경우이므로 바로 중단
+        if (response.status === 400 || errMsg.toLowerCase().includes('invalid argument')) {
+          if (pureBase64.length > 10000000) { // 대략 7~8MB 이상
+            throw new Error(`파일 크기가 너무 커서 처리할 수 없습니다. (에러: ${errMsg}) 용량을 줄여서 다시 시도해주세요.`);
+          } else {
+            throw new Error(`잘못된 요청입니다. 파일이 손상되었거나 지원되지 않는 형식일 수 있습니다. (에러: ${errMsg})`);
+          }
+        }
+
+        // 403(권한 없음), 404(모델 없음), 신규 미지원 모델일 경우 영구 블랙리스트에 추가하고 다음 모델로 넘어감
+        if ([403, 404].includes(response.status) || errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('no longer available')) {
           const bl = JSON.parse(localStorage.getItem('gemini_blacklisted_models') || '[]');
           if (!bl.includes(modelName)) {
             bl.push(modelName);
@@ -277,6 +295,9 @@ async function callGeminiAPI(base64Data, apiKey) {
       return text.trim();
 
     } catch (err) {
+      if (err.message.includes('API 키가 유효하지 않습니다')) {
+        throw err;
+      }
       console.warn(`[오류]: ${modelName} 처리 중 시스템 에러`, err);
       lastErrorMsg = err.message;
       // 네트워크 오류 등일 경우 일단 다음 모델로 시도해봄
