@@ -100,7 +100,8 @@ async function startProcessing(files, apiKey) {
   lucide.createIcons();
 
   // 순차적으로 변환 처리 (에러 방지 및 API 속도 제한 고려)
-  for (const item of fileItems) {
+  for (let i = 0; i < fileItems.length; i++) {
+    const item = fileItems[i];
     try {
       updateFileUI(item.id, '처리 중...', 'processing', 50);
 
@@ -117,6 +118,11 @@ async function startProcessing(files, apiKey) {
       });
 
       updateFileUI(item.id, '변환 완료', 'success', 100);
+
+      // 여러 파일 변환 시 API 할당량 초과(Rate Limit) 방지를 위해 5초 대기 (마지막 파일 제외)
+      if (i < fileItems.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+      }
     } catch (error) {
       console.error(error);
       updateFileUI(item.id, `오류: ${error.message}`, 'error', 100);
@@ -231,14 +237,21 @@ async function callGeminiAPI(base64Data, apiKey) {
         console.warn(`[실패]: ${modelName} - ${errMsg}`);
         lastErrorMsg = errMsg;
 
-        // 429(할당량 초과), 403(권한 없음), 400(지원하지 않는 기능), 404(모델 없음) 일 경우 블랙리스트에 추가하고 다음 모델로 넘어감
-        if ([429, 403, 400, 404].includes(response.status) || errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('not found')) {
+        // 403(권한 없음), 400(지원하지 않는 기능), 404(모델 없음), 신규 미지원 모델일 경우 영구 블랙리스트에 추가하고 다음 모델로 넘어감
+        if ([403, 400, 404].includes(response.status) || errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('no longer available')) {
           const bl = JSON.parse(localStorage.getItem('gemini_blacklisted_models') || '[]');
           if (!bl.includes(modelName)) {
             bl.push(modelName);
             localStorage.setItem('gemini_blacklisted_models', JSON.stringify(bl));
           }
           continue; // 다음 모델 시도
+        }
+
+        // 429(할당량 초과) 일 경우 잠시 대기 후 바로 다른 모델 시도 (일시적인 문제이므로 영구 블랙리스트엔 넣지 않음)
+        if (response.status === 429 || errMsg.toLowerCase().includes('quota')) {
+          console.warn(`[할당량 초과]: ${modelName} - 잠시 후 다른 모델로 재시도합니다.`);
+          await new Promise(resolve => setTimeout(resolve, 3000)); // 3초 대기
+          continue;
         }
 
         // 그 외의 치명적 오류면 즉시 중단
